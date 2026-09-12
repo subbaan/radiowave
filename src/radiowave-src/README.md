@@ -170,8 +170,9 @@ immediately without interrupting playback. Radiowave supports:
   a large Tinted Theming collection. Moving through the results previews each
   palette immediately; `Enter` saves it and `Esc` restores the previous theme.
 
-For Tinted Theming, the raw files under `schemes/base16` are the most direct
-choice. Generated i3 files also work because Radiowave imports their Base16
+For [Tinted Theming](https://github.com/tinted-theming/schemes), the raw
+files under `schemes/base16` are the most direct choice. Generated i3 files
+also work because Radiowave imports their Base16
 variables and ignores the i3-specific rules. Base16 roles are mapped
 semantically: `base00`/`base05` provide the background/text,
 `base08`–`base0E` provide status/accent colours, and `base02` provides the

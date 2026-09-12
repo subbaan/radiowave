@@ -135,7 +135,11 @@ Press `c` from either page to open Settings and pick a palette without
 interrupting playback: the built-in default, one that follows your Kitty
 terminal theme live, a custom theme file (Kitty, Radiowave semantic
 key/value, Base16/Base24 YAML, or generated i3 Base16), or a live-filtering
-browser over a folder of theme files (e.g. a Tinted Theming collection).
+browser over a folder of theme files.
+
+[Tinted Theming's `schemes` repo](https://github.com/tinted-theming/schemes)
+is a good source of Base16/Base24 files — clone it and point the theme
+folder browser at its `base16` directory.
 
 ## Architecture
 
