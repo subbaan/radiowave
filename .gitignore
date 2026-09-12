@@ -1,0 +1,11 @@
+# Old versioned build artifacts (binaries + source tarballs), kept locally
+# for manual upload to GitHub Releases. Not tracked in git.
+/releases/
+
+# Build outputs
+/radiowave
+/src/radiowave-src/radiowave
+
+# Go
+*.test
+*.out
