@@ -15,6 +15,15 @@ Switching pages (`Tab`) never interrupts playback — you can browse the
 Manager for several minutes auditioning a station before deciding whether to
 favourite it.
 
+<p align="center">
+  <a href="images/radiowave_rgba_vis.mp4"><img src="images/radiowave_rgba_vis.webp" width="874" alt="Radiowave's Neon visualizer drawing alpha-blended RGBA bars inside a translucent kitty terminal"></a>
+</p>
+
+**Yes, that's a terminal.** In Kitty, Radiowave's pixel visualizers draw
+real 32-bit RGBA frames at 60 fps, alpha-blended straight onto a translucent
+terminal background — no character cells involved.
+([Full-quality clip](images/radiowave_rgba_vis.mp4).)
+
 ## Screenshots
 
 | | |
@@ -29,9 +38,24 @@ favourite it.
 If [`cava`](https://github.com/karlstav/cava) is installed, the visualizer is
 real audio analysis of whatever is playing through your default audio
 device. Without `cava` on `PATH`, it falls back to clearly-labelled demo
-waveforms. Ten visualizer styles are available (`v`/`V` to cycle): Classic,
-Mirrored, Blocks, Peaks, VU, Oscilloscope, Waterfall, Plasma, Tunnel, and
-Ribbons.
+waveforms. Ten character-cell visualizer styles are available (`v`/`V` to
+cycle): Classic, Mirrored, Blocks, Peaks, VU, Oscilloscope, Waterfall,
+Plasma, Tunnel, and Ribbons.
+
+In Kitty (or any terminal with the Kitty graphics protocol), three **pixel
+styles** join the cycle and render real RGBA graphics at 60 fps with alpha
+blending:
+
+- **Neon** — glowing gradient bars with falling peak caps, phosphor trails,
+  sparks thrown from the tallest bars on every beat, and a floor reflection
+  that ripples with the bass.
+- **Nebula** — a Milkdrop-style feedback swirl around a beat-reactive
+  spectrum ring; beat sparks smear into comet streaks.
+- **Spectrogram** — scrolling frequency-over-time heat map in your theme's
+  colours, quiet bins left transparent.
+
+Other terminals and tmux keep the character styles. `--gfx=auto|shm|direct|off` picks the transport and
+`--pixel-scale=N` the pixel size (default 2×2 screen pixels).
 
 The Player scales all the way down to a practical 24×4 mini player, and up
 to a large Visual layout that gives nearly the entire window to the graph.
@@ -72,7 +96,7 @@ make build
 ```
 
 ```bash
-radiowave --version   # or -v
+radiowave --version   # or -V / -v
 radiowave --help      # or -h
 ```
 

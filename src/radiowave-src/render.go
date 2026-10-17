@@ -165,6 +165,7 @@ func renderApp(a *App) string {
 		}
 		return renderSizeNotice(a, message, hint)
 	}
+	a.pixRect = vizRect{}
 	var body string
 	switch {
 	case a.themePicker:
@@ -468,7 +469,7 @@ func renderPlayerMini(a *App) string {
 
 	vizRows := max(0, a.height-len(lines)-1)
 	if vizRows > 0 && a.visualizer != nil {
-		for _, row := range renderVisualizerPanel(a, vizRows, max(1, a.width-2)) {
+		for _, row := range renderVisualizerPanel(a, vizRows, max(1, a.width-2), len(lines)+1, 2) {
 			lines = append(lines, " "+row)
 		}
 	}
@@ -507,7 +508,7 @@ func renderPlayerNormal(a *App) string {
 	var out strings.Builder
 	out.WriteString(renderHeader(a, "PLAYER"))
 	nowH, listRows := a.playerLayoutMetrics()
-	nowPanel := renderNowPlayingPanel(a, a.width, nowH, true)
+	nowPanel := renderNowPlayingPanel(a, a.width, nowH, true, 2)
 	for _, l := range nowPanel {
 		out.WriteString(l + "\n")
 	}
@@ -522,7 +523,7 @@ func renderPlayerNormal(a *App) string {
 func renderPlayerCompact(a *App) string {
 	var out strings.Builder
 	out.WriteString(renderHeader(a, "PLAYER"))
-	nowPanel := renderNowPlayingPanel(a, a.width, max(1, a.height-2), true)
+	nowPanel := renderNowPlayingPanel(a, a.width, max(1, a.height-2), true, 2)
 	for _, l := range nowPanel {
 		out.WriteString(l + "\n")
 	}
@@ -540,7 +541,7 @@ func renderPlayerVisual(a *App) string {
 		h = 1
 	}
 	out.WriteString(border + "┌" + strings.Repeat("─", a.width-2) + "┐" + reset + "\n")
-	graph := renderVisualizerPanel(a, h, a.width-4)
+	graph := renderVisualizerPanel(a, h, a.width-4, 3, 3)
 	for _, line := range graph {
 		out.WriteString(border + "│" + reset + " " + pad(line, a.width-4) + " " + border + "│" + reset + "\n")
 	}
@@ -568,7 +569,7 @@ func renderPlayerVisual(a *App) string {
 // look like a demo, and vice versa (project rule: demo data must never be
 // presented as real analysis).
 func visualizerLabel(a *App) string {
-	label := a.vizStyle.Label() + " · " + a.visualizer.Name()
+	label := a.activeVizStyle().Label() + " · " + a.visualizer.Name()
 	if a.visualizer.Demo() {
 		label += " · demo"
 	}
@@ -578,18 +579,30 @@ func visualizerLabel(a *App) string {
 // renderVisualizerPanel briefly puts the selected style/source name inside
 // the graph itself. It costs no permanent UI row and disappears after the
 // user has had enough time to identify a newly selected style.
-func renderVisualizerPanel(a *App, rows, cols int) []string {
-	graph := a.renderVisualizer(rows, cols)
+//
+// top/left are the panel's 1-based screen position. Pixel styles leave the
+// cells blank and record the rectangle so the frame image can be placed
+// under them; the label still draws on top of the image.
+func renderVisualizerPanel(a *App, rows, cols, top, left int) []string {
+	var graph []string
+	if a.pixelStyleActive() {
+		rows = max(0, min(rows, a.height-top+1))
+		a.pixRect = vizRect{top: top, left: left, rows: rows, cols: cols}
+		graph = make([]string, rows)
+	} else {
+		graph = a.renderVisualizer(rows, cols)
+	}
 	if len(graph) == 0 || !time.Now().Before(a.vizLabelUntil) {
 		return graph
 	}
 	label := truncate(visualizerLabel(a), cols)
-	left := max(0, (cols-visibleLen(label))/2)
-	graph[0] = strings.Repeat(" ", left) + fgMuted + label + reset
+	indent := max(0, (cols-visibleLen(label))/2)
+	graph[0] = strings.Repeat(" ", indent) + fgMuted + label + reset
 	return graph
 }
 
-func renderNowPlayingPanel(a *App, w, h int, withVisualizer bool) []string {
+// renderNowPlayingPanel draws the panel with its top border on screen row top.
+func renderNowPlayingPanel(a *App, w, h int, withVisualizer bool, top int) []string {
 	lines := []string{boxTop(w, "NOW PLAYING")}
 	if a.now == nil {
 		lines = append(lines, boxLine(w, " "+fgMuted+"Nothing playing — press Tab to browse stations."+reset))
@@ -620,7 +633,7 @@ func renderNowPlayingPanel(a *App, w, h int, withVisualizer bool) []string {
 		if vizRows < 1 {
 			vizRows = 1
 		}
-		for _, row := range renderVisualizerPanel(a, vizRows, w-4) {
+		for _, row := range renderVisualizerPanel(a, vizRows, w-4, top+len(lines), 3) {
 			lines = append(lines, boxLine(w, " "+row))
 		}
 	}

@@ -151,7 +151,7 @@ func TestCompactPlayerFits64x12AndFavoursVisualizer(t *testing.T) {
 		}
 	}
 
-	panel := renderNowPlayingPanel(app, 64, 10, true)
+	panel := renderNowPlayingPanel(app, 64, 10, true, 2)
 	// top + station + track + tags + five graph rows + bottom
 	if got, want := len(panel)-5, 5; got != want {
 		t.Fatalf("compact player rendered %d visualizer rows, want %d", got, want)
@@ -256,13 +256,13 @@ func TestHeaderPlacesVolumeBeforeConnectionStatus(t *testing.T) {
 
 func TestVisualizerLabelIsTransientAndInsideGraph(t *testing.T) {
 	app := &App{visualizer: NewDemoVisualizer(), vizLabelUntil: time.Now().Add(time.Second)}
-	graph := stripANSI(strings.Join(renderVisualizerPanel(app, 5, 60), "\n"))
+	graph := stripANSI(strings.Join(renderVisualizerPanel(app, 5, 60, 3, 3), "\n"))
 	if !strings.Contains(graph, visualizerLabel(app)) || strings.Contains(graph, "VISUALIZER") {
 		t.Fatalf("expected only the transient visualizer name inside graph, got %q", graph)
 	}
 
 	app.vizLabelUntil = time.Now().Add(-time.Second)
-	graph = stripANSI(strings.Join(renderVisualizerPanel(app, 5, 60), "\n"))
+	graph = stripANSI(strings.Join(renderVisualizerPanel(app, 5, 60, 3, 3), "\n"))
 	if strings.Contains(graph, visualizerLabel(app)) {
 		t.Fatalf("expected expired visualizer name to disappear, got %q", graph)
 	}

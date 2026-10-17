@@ -23,11 +23,24 @@ const (
 	stylePlasma
 	styleTunnel
 	styleRibbons
+	styleNeon
+	styleNebula
+	styleSpectrogram
 	vizStyleCount // sentinel — keep last
 )
 
+// pixel reports whether the style is drawn as a kitty graphics image rather
+// than character cells. Pixel styles are skipped when graphics are off.
+func (s vizStyle) pixel() bool { return s == styleNeon || s == styleNebula || s == styleSpectrogram }
+
 func (s vizStyle) Label() string {
 	switch s {
+	case styleNeon:
+		return "Neon"
+	case styleNebula:
+		return "Nebula"
+	case styleSpectrogram:
+		return "Spectrogram"
 	case stylePlasma:
 		return "Plasma"
 	case styleTunnel:
@@ -55,6 +68,12 @@ func (s vizStyle) String() string { return strings.ToLower(s.Label()) }
 
 func parseVizStyle(s string) vizStyle {
 	switch strings.ToLower(s) {
+	case "neon":
+		return styleNeon
+	case "nebula":
+		return styleNebula
+	case "spectrogram":
+		return styleSpectrogram
 	case "plasma":
 		return stylePlasma
 	case "tunnel":
@@ -87,7 +106,7 @@ func (a *App) renderVisualizer(rows, cols int) []string {
 		rows = 1
 	}
 	cols = max(1, cols)
-	switch a.vizStyle {
+	switch a.activeVizStyle() {
 	case stylePlasma, styleTunnel, styleRibbons:
 		return a.reactiveEffectRows(a.visualizer.Levels(48), rows, cols, time.Now())
 	case styleVU:

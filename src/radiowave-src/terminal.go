@@ -17,10 +17,14 @@ type winSize struct {
 	Ypixel uint16
 }
 
+func ioctlWinSize(ws *winSize) bool {
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, os.Stdout.Fd(), uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(ws)))
+	return errno == 0
+}
+
 func terminalSize() (int, int) {
 	ws := &winSize{}
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, os.Stdout.Fd(), uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(ws)))
-	if errno == 0 && ws.Col > 0 && ws.Row > 0 {
+	if ioctlWinSize(ws) && ws.Col > 0 && ws.Row > 0 {
 		return int(ws.Col), int(ws.Row)
 	}
 	return 120, 36

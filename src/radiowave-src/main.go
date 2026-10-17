@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -88,6 +89,13 @@ type App struct {
 	vizHistory    [][]float64
 	vizLabelUntil time.Time
 
+	gfx          *kittyGfx // nil when pixel graphics are unavailable or off
+	gfxProbe     gfxProbe
+	pixScale     int
+	cellW, cellH int
+	pixRect      vizRect
+	pix          pixState
+
 	fetchCh        chan fetchResult
 	tagsCh         chan tagsResult
 	hasMore        bool
@@ -96,13 +104,32 @@ type App struct {
 }
 
 func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
-		fmt.Println("radiowave", Version)
-		return
-	}
-	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
-		printUsage()
-		return
+	gfxWant, pixScale := "auto", 2
+	for _, arg := range os.Args[1:] {
+		switch {
+		case arg == "--version" || arg == "-v" || arg == "-V":
+			fmt.Println("radiowave", Version)
+			return
+		case arg == "--help" || arg == "-h":
+			printUsage()
+			return
+		case strings.HasPrefix(arg, "--gfx="):
+			gfxWant = strings.TrimPrefix(arg, "--gfx=")
+			if gfxWant != "auto" && gfxWant != "shm" && gfxWant != "direct" && gfxWant != "off" {
+				fmt.Fprintf(os.Stderr, "radiowave: --gfx must be auto, shm, direct or off, not %q\n", gfxWant)
+				os.Exit(2)
+			}
+		case strings.HasPrefix(arg, "--pixel-scale="):
+			n, err := strconv.Atoi(strings.TrimPrefix(arg, "--pixel-scale="))
+			if err != nil || n < 1 || n > 4 {
+				fmt.Fprintln(os.Stderr, "radiowave: --pixel-scale must be 1 to 4")
+				os.Exit(2)
+			}
+			pixScale = n
+		default:
+			fmt.Fprintf(os.Stderr, "radiowave: unknown argument %q (try --help)\n", arg)
+			os.Exit(2)
+		}
 	}
 
 	store, err := NewStore()
@@ -154,6 +181,7 @@ func main() {
 		store:        store,
 		lib:          lib,
 		visualizers:  visualizers,
+		pixScale:     pixScale,
 		fetchCh:      make(chan fetchResult, 4),
 		tagsCh:       make(chan tagsResult, 1),
 	}
@@ -174,6 +202,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer term.Leave()
+	app.initGfx(gfxWant)
+	defer app.closeGfx()
 
 	done := make(chan struct{})
 	defer close(done)
@@ -196,7 +226,7 @@ func main() {
 		// Paint the restored station before asking mpv to reconnect. A stream
 		// may spend several seconds buffering, but the terminal should still
 		// show useful now-playing information during that wait.
-		fmt.Print(renderApp(app))
+		app.draw()
 		app.playStation(lib.State.Station)
 	} else {
 		app.openStartupFavorites()
@@ -207,15 +237,27 @@ func main() {
 	metadata := time.NewTicker(1 * time.Second)
 	defer redraw.Stop()
 	defer metadata.Stop()
+	// Pixel styles animate on their own clock; the cell UI keeps its
+	// 12.5 Hz redraw. A nil channel simply never fires.
+	var pixelTick <-chan time.Time
+	if app.gfx != nil {
+		interval := time.Second / 60
+		if app.gfx.tx == gfxDirect {
+			interval = time.Second / 30
+		}
+		t := time.NewTicker(interval)
+		defer t.Stop()
+		pixelTick = t.C
+	}
 
-	fmt.Print(renderApp(app))
+	app.draw()
 	for {
 		select {
 		case key := <-keyCh:
 			if app.handleKey(key) {
 				return
 			}
-			fmt.Print(renderApp(app))
+			app.draw()
 		case res := <-app.fetchCh:
 			if res.offset == 0 {
 				app.loading = false
@@ -236,7 +278,7 @@ func main() {
 					app.stations = appendUniqueStations(app.stations, page)
 				}
 			}
-			fmt.Print(renderApp(app))
+			app.draw()
 		case res := <-app.tagsCh:
 			app.genreLoading = false
 			if res.err != nil {
@@ -244,15 +286,16 @@ func main() {
 			} else {
 				app.genreTags = res.tags
 			}
-			fmt.Print(renderApp(app))
+			app.draw()
 		case sig := <-sigCh:
 			if sig == syscall.SIGWINCH {
 				app.width, app.height = terminalSize()
+				app.updateCellSize()
 				app.ensureCursorVisible()
 				app.ensurePlayerCursorVisible()
 				app.ensureGenreCursorVisible()
 				app.ensureThemePickerVisible()
-				fmt.Print(renderApp(app))
+				app.draw()
 				continue
 			}
 			return
@@ -268,11 +311,13 @@ func main() {
 				}
 			}
 			if themeChanged {
-				fmt.Print(renderApp(app))
+				app.draw()
 			}
+		case <-pixelTick:
+			app.drawPixels()
 		case <-redraw.C:
 			if app.page == pagePlayer {
-				fmt.Print(renderApp(app))
+				app.draw()
 			}
 		}
 	}
@@ -281,10 +326,17 @@ func main() {
 func printUsage() {
 	fmt.Println("radiowave", Version, "- terminal internet radio player")
 	fmt.Println()
-	fmt.Println("Usage: radiowave [--version|-v] [--help|-h]")
+	fmt.Println("Usage: radiowave [options]")
+	fmt.Println()
+	fmt.Println("  -h, --help             show this help and exit")
+	fmt.Println("  -V, -v, --version      show the version and exit")
+	fmt.Println("      --gfx=MODE         pixel visualizers: auto (default), shm, direct, off")
+	fmt.Println("      --pixel-scale=N    screen pixels per canvas pixel, 1-4 (default 2)")
 	fmt.Println()
 	fmt.Println("Run with no arguments to start the TUI. It reconnects to the last")
 	fmt.Println("playing station automatically when playback was active on exit.")
+	fmt.Println("Pixel styles (Neon, Nebula) need the kitty graphics protocol; other")
+	fmt.Println("terminals keep the character-cell styles.")
 }
 
 func (a *App) fetch(mode browseMode, query string) {
@@ -798,7 +850,14 @@ func (a *App) adjustVolume(delta int) {
 // data source (cava vs. demo fallback) is chosen automatically at startup.
 func (a *App) cycleVizStyle(dir int) {
 	n := int(vizStyleCount)
-	a.vizStyle = vizStyle(((int(a.vizStyle)+dir)%n + n) % n)
+	s := int(a.vizStyle)
+	for i := 0; i < n; i++ {
+		s = ((s+dir)%n + n) % n
+		if a.vizStyleAvailable(vizStyle(s)) {
+			break
+		}
+	}
+	a.vizStyle = vizStyle(s)
 	a.vizHistory = nil
 	a.vizLabelUntil = time.Now().Add(2 * time.Second)
 	a.persistPlayback()

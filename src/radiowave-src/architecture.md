@@ -1,6 +1,6 @@
 # Radiowave Architecture
 
-**Covers:** v0.6.3. Update this file whenever a change makes a description
+**Covers:** v0.7.1. Update this file whenever a change makes a description
 below materially incorrect — it should explain how the program fits
 together, not narrate every commit.
 
@@ -20,6 +20,9 @@ visualizer.go  Visualizer interface and demo waveform implementations
 terminal.go    Raw-mode terminal setup, sizing, and key decoding
 theme.go       Palette model, Kitty/Base16/custom import, and live reload
 themescreen.go Theme settings and live-filtering directory browser
+kgfx.go        Kitty graphics protocol: capability probe, shm/direct transport
+pixcanvas.go   Additive-light software framebuffer, warp, RGBA tone-mapping
+pixviz.go      Pixel visualizer styles (Neon, Nebula, Spectrogram) and App glue
 ```
 
 ## Application model
@@ -295,6 +298,50 @@ style with big fixed-size blocks) needs to compute cell width from the
 bar-per-column styles don't have this failure mode since a *column's*
 width is inherently 1 character, only a cell spanning multiple characters
 can drift from the available space this way.
+
+### Pixel styles
+
+Neon, Nebula and Spectrogram (`pixviz.go`) are drawn as real RGBA images through the
+kitty graphics protocol instead of characters. The cell renderer still
+owns layout: when a pixel style is active, `renderVisualizerPanel` returns
+blank rows and records the panel's screen rectangle in `App.pixRect`
+(1-based cells; reset at the top of every `renderApp`, so overlay screens
+and the Manager simply leave it empty and the image is deleted). The image
+is placed there at `z=-1`, above cell backgrounds but below text, so the
+transient style label still draws over it.
+
+`initGfx` probes once at startup, in raw mode before the key reader
+starts (graphics query for direct and shm transmission, CSI 16 t for cell
+size, DA1 to bound the wait). No answer, `--gfx=off`, or `$TMUX` without
+a forced mode leaves `App.gfx` nil; pixel styles are then skipped by
+`cycleVizStyle` and a remembered one draws as Classic via
+`activeVizStyle()`. Frames are sent with `q=2`, so the terminal never
+writes replies that the key reader would misread as Esc.
+
+Frames render at a fixed 60 Hz (`drawPixels`, 30 Hz on the direct
+transport) independent of the 12.5 Hz cell redraw. Kitty deletes images
+on ED 2, so in graphics mode `draw()` swaps the full-screen clear for a
+whole-line erase before each line; the image then survives cell redraws
+and is only re-sent when its rectangle or the cell size changes
+(`kittyGfx.shown`). Cells and image go out inside one synchronized update
+(`?2026`).
+
+`pixCanvas` stores additive light as float32 RGB on black and tone-maps
+through a LUT on output; brightness doubles as alpha, so black is
+transparent and the theme background shows through. Canvas pixels are
+`--pixel-scale` screen pixels square (default 2), upscaled nearest-neighbour
+straight into the shm mapping. `pixCanvasBudget` caps canvas size, raising
+the scale on very large panels instead of the CPU cost. Neon draws only
+its bars into a scratch frame and max-blends it over the decaying previous
+frame (phosphor trails without additive blow-out); Nebula is one bilinear
+zoom/rotate/decay warp of the previous frame plus a ring of soft dots;
+Spectrogram memmoves the canvas left and paints only the new columns.
+Beat sparks (`stepSparks`, capped at `maxSparks`) are shared: Neon draws
+them into its scratch frame so they inherit its phosphor trails, Nebula
+into the feedback canvas so the warp turns them into streaks. Neon's
+reflection ripple is a per-row sideways offset computed once per frame.
+Colours come from the active palette every frame, so theme changes apply
+live.
 
 ## Constraints and decisions worth preserving
 

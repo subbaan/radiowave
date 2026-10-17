@@ -49,7 +49,7 @@ func (v *CavaVisualizer) Start() error {
 	configPath := filepath.Join(os.TempDir(), fmt.Sprintf("radiowave-cava-%d.conf", os.Getpid()))
 	config := fmt.Sprintf(`[general]
 bars = %d
-framerate = 30
+framerate = 60
 
 [input]
 method = pulse

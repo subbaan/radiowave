@@ -44,7 +44,13 @@ func TestCycleVizStyleWrapsAndPersistsChoice(t *testing.T) {
 		visualizer: NewDemoVisualizer(),
 	}
 	start := a.vizStyle
-	for i := 0; i < int(vizStyleCount); i++ {
+	available := 0
+	for s := vizStyle(0); s < vizStyleCount; s++ {
+		if a.vizStyleAvailable(s) {
+			available++
+		}
+	}
+	for i := 0; i < available; i++ {
 		a.cycleVizStyle(1)
 	}
 	if a.vizStyle != start {

@@ -1,4 +1,4 @@
-# Radiowave v0.6.3
+# Radiowave v0.7.1
 
 A terminal-native internet radio player and discovery tool for Linux.
 
@@ -35,6 +35,15 @@ active: Classic, Mirrored, Blocks, Peaks, VU, Oscilloscope, Waterfall,
 Plasma, Tunnel, and Ribbons. The three new effects use bass, midrange and
 treble energy to drive motion, shape and detail, with a bounded 160×60
 effect grid at the existing 12.5 redraws per second.
+
+In Kitty (or any terminal with the Kitty graphics protocol), three pixel
+styles also join the cycle: **Neon** (bars with beat sparks and a rippling
+reflection), **Nebula** (feedback swirl) and **Spectrogram** (scrolling
+heat map). They draw real RGBA
+graphics at 60 fps with alpha blending over the theme background, on a
+canvas of 2×2-screen-pixel blocks sent through shared memory. Other
+terminals and tmux keep the character styles; `--gfx=auto|shm|direct|off`
+and `--pixel-scale=N` (1–4) override the defaults.
 
 Press `c`, select **Frequency order**, and press `Enter` to switch between
 **Bass centre → highs outward** (default) and **Bass left → highs right**.
@@ -81,7 +90,7 @@ make build
 ```
 
 ```bash
-radiowave --version   # or -v
+radiowave --version   # or -V / -v
 radiowave --help      # or -h
 ```
 

@@ -4,6 +4,36 @@ All notable user-visible changes to Radiowave are recorded here, grouped by
 version. This is a hobby project changelog — concise entries, not a diff
 narration.
 
+## v0.7.1
+
+### Added
+
+- Spectrogram pixel style: a scrolling frequency-over-time heat map in the
+  theme's colours.
+- Beat sparks: Neon throws particles from its tallest bars, Nebula flings
+  them outward from the ring as comet streaks.
+- Neon's floor reflection ripples with the bass.
+- README hero clip of the RGBA visualizer running in a translucent kitty.
+
+## v0.7.0
+
+### Added
+
+- Pixel visualizers via the Kitty graphics protocol: real RGBA frames at
+  60 fps with alpha blending over the theme background, sent through
+  shared memory (direct transmission as a fallback). Character-cell styles
+  remain the fallback in other terminals and tmux.
+- Neon: glowing gradient bars with a hot tip, falling peak caps, phosphor
+  trails and a floor reflection.
+- Nebula: a Milkdrop-style zoom/rotate feedback swirl around a
+  beat-reactive spectrum ring.
+- `--gfx=auto|shm|direct|off` and `--pixel-scale=N` options; `-V` now
+  prints the version too.
+
+### Changed
+
+- CAVA analysis runs at 60 fps (was 30) to feed the pixel styles.
+
 ## v0.6.3
 
 ### Changed
