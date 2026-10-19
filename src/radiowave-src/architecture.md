@@ -1,6 +1,6 @@
 # Radiowave Architecture
 
-**Covers:** v0.7.1. Update this file whenever a change makes a description
+**Covers:** v0.8.6. Update this file whenever a change makes a description
 below materially incorrect — it should explain how the program fits
 together, not narrate every commit.
 
@@ -23,6 +23,7 @@ themescreen.go Theme settings and live-filtering directory browser
 kgfx.go        Kitty graphics protocol: capability probe, shm/direct transport
 pixcanvas.go   Additive-light software framebuffer, warp, RGBA tone-mapping
 pixviz.go      Pixel visualizer styles (Neon, Nebula, Spectrogram) and App glue
+pixfx.go       Demoscene/Winamp pixel styles (Fire, Warp, Wormhole, Copper, ...)
 ```
 
 ## Application model
@@ -275,8 +276,11 @@ point all Player layouts call into, which is what keeps that state
 shared correctly between them.
 
 `effects.go` renders Plasma, Tunnel and Ribbons on a grid capped at
-160×60 cells, expanded to the panel size. Three frequency-band averages
-control motion and shape. The existing 80 ms redraw drives animation;
+160×60 cells, expanded to the panel size. Three frequency-band averages,
+each scaled by its running peak like `normalise`, control motion and shape,
+and an `App.effectBeat` detector (the same `beatDetector` as the pixel
+styles) flashes Plasma and sends a ring out of the Tunnel on each kick.
+The existing 80 ms redraw drives animation;
 there are no extra timers or rendering processes. Settings rows scroll
 to keep the selected theme or visualizer preference visible at 64×12.
 
@@ -301,7 +305,7 @@ can drift from the available space this way.
 
 ### Pixel styles
 
-Neon, Nebula and Spectrogram (`pixviz.go`) are drawn as real RGBA images through the
+Neon, Nebula, Spectrogram (`pixviz.go`) and the eight styles in `pixfx.go` are drawn as real RGBA images through the
 kitty graphics protocol instead of characters. The cell renderer still
 owns layout: when a pixel style is active, `renderVisualizerPanel` returns
 blank rows and records the panel's screen rectangle in `App.pixRect`
@@ -340,6 +344,35 @@ Beat sparks (`stepSparks`, capped at `maxSparks`) are shared: Neon draws
 them into its scratch frame so they inherit its phosphor trails, Nebula
 into the feedback canvas so the warp turns them into streaks. Neon's
 reflection ripple is a per-row sideways offset computed once per frame.
+
+The `pixfx.go` styles follow the same budget. Fire runs a half-resolution
+heat field at a fixed 90 steps a second and stretches it onto the canvas
+through a palette LUT (`drawField`). Wormhole builds a per-pixel
+depth/angle table on resize, so a frame is one lookup per pixel into a ring
+buffer of past spectra (`hist`). Lava is the only per-pixel sum (seven
+metaballs) and the heaviest style, at roughly 9 ms for the largest canvas.
+Warp, Wormhole, Copper and Lava read `normalise`d levels: each band scaled by
+its own running peak (instant attack, about a four-second fall), floored
+at 40% of the loudest band's, so speech and quiet music still use the full
+range. Cava's autosens alone leaves most bands near the bottom on such
+material. On dense music the opposite happens: `norm` sits between about
+0.75 and 1 in every band, so `normalise` also fills `pulse`, each band
+stretched between its recent floor and its peak. Copper sizes its bars
+from `pulse`, and Ridgeline and Horizon scale `norm` by it, so their shapes
+move with each hit.
+
+Every pixel style detects beats with `beatDetector.trackBeat`, which reads
+`kickLevel`: the raw lowest sixteenth of the spectrum. A kick in cava's
+output rises in about 100 ms and decays over several hundred, so a beat is
+the rise over the last 67 ms (four frames at 60 fps, one at the character
+effects' 12.5 Hz), relative to the bass's running peak, beating 35% of
+the biggest recent rise. On recorded techno this lands on about nine kicks
+in ten. The earlier test, level over a running average, missed or doubled
+about half, because a bassline keeps the dips between kicks shallow.
+Copper, Ridgeline and Horizon occlude with `set` (writing black, which is
+transparent) instead of adding light. Warp, LED and the rest touch only the
+pixels they draw. Pixel styles must stay contiguous from `styleNeon` to the
+end of the `vizStyle` list; `pixel()` relies on it.
 Colours come from the active palette every frame, so theme changes apply
 live.
 

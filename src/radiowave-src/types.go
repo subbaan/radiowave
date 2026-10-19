@@ -2,7 +2,7 @@ package main
 
 import "time"
 
-const Version = "0.7.1"
+const Version = "0.8.6"
 
 type Station struct {
 	ChangeUUID  string `json:"changeuuid,omitempty"`

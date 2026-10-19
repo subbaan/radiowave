@@ -35,13 +35,26 @@ type pixState struct {
 
 	levels, peaks, peakVel []float64
 
-	bassAvg, beat, beatWait float64
-	spin, ripple            float64
+	beatDetector
+	spin, ripple float64
 
 	sparks []spark
 
 	column []float64 // Spectrogram: the previous column's levels
 	scroll float64   // Spectrogram: fractional columns not yet scrolled
+
+	tick       float64     // Fire's sim steps / Ridgeline's samples not yet taken
+	travel     float64     // Wormhole, Horizon: distance flown
+	heat       []float32   // Fire: half-resolution heat field
+	stars      []star      // Warp, Horizon
+	hist       [][]float64 // Wormhole rings, Ridgeline ridges: past spectra
+	histN      int         // index of the newest hist entry
+	tunZ, tunA []float32   // Wormhole: per-pixel depth and angle
+	ringBeat   bool        // Wormhole: a beat is waiting for the next ring
+
+	norm, bandPeak []float64 // normalise: gain-adjusted levels, running peaks
+	pulse, bandLow []float64 // normalise: levels stretched floor-to-peak, running floors
+	top            float64   // normalise: the loudest band's running peak
 }
 
 // spark is one beat-burst particle, in canvas pixels.
@@ -57,9 +70,14 @@ func (p *pixState) reset() {
 	p.cv.clear()
 	p.back.clear()
 	p.levels, p.peaks, p.peakVel = nil, nil, nil
-	p.beat, p.beatWait = 0, 0
+	p.beatDetector = beatDetector{}
 	p.sparks = p.sparks[:0]
 	p.column, p.scroll = nil, 0
+	p.tick, p.travel, p.spin = 0, 0, 0
+	p.heat, p.stars, p.hist, p.histN = nil, nil, nil, 0
+	p.tunZ, p.tunA, p.ringBeat = nil, nil, false
+	p.norm, p.bandPeak, p.top = nil, nil, 0
+	p.pulse, p.bandLow = nil, nil
 }
 
 // smoothLevels eases p.levels towards target: fast attack, slower release,
@@ -81,15 +99,47 @@ func (p *pixState) smoothLevels(target []float64, dt float64) {
 	}
 }
 
-// trackBeat flags a beat when bass jumps well above its running average,
-// and reports whether one started this frame.
-func (p *pixState) trackBeat(bass, dt float64) bool {
-	p.bassAvg += (bass - p.bassAvg) * (1 - math.Exp(-dt*2))
-	p.beat *= math.Exp(-dt * 6)
-	p.beatWait -= dt
-	if p.beatWait <= 0 && bass > p.bassAvg*1.3+0.06 {
-		p.beat = 1
-		p.beatWait = 0.18
+// kickLevel is the bass trackBeat watches: the lowest sixteenth of the
+// spectrum, raw rather than smoothed so the kick's attack stays sharp.
+func kickLevel(v Visualizer) float64 { return bandMean(v.Levels(64), 0, 1.0/16) }
+
+// beatDetector finds kicks in the bass. beat is 1 on a kick and decays
+// over about half a second, for effects to scale by.
+type beatDetector struct {
+	beat, beatWait    float64
+	kickHist          [4]float64 // the last few kick levels
+	kickPos           int
+	kickPeak, riseTop float64 // running peaks of level and rise
+}
+
+// kickRise is how far back trackBeat measures the rise: about the length of
+// a kick's attack.
+const kickRise = 0.067
+
+// trackBeat flags a beat on a sharp rise in the bass, and reports whether
+// one started this frame. A kick in cava's output rises in about 100 ms and
+// decays over several hundred, so the rise over the last kickRise seconds
+// (relative to the bass's running peak, to be independent of loudness) is
+// compared with a share of the biggest recent rise. Comparing the level
+// with its running average instead misses or doubles most kicks once a
+// bassline fills the gaps between them. At 60 fps that is four frames back;
+// at the 12.5 Hz redraw of the character effects it is the previous frame.
+func (b *beatDetector) trackBeat(bass, dt float64) bool {
+	b.beat *= math.Exp(-dt * 6)
+	b.beatWait -= dt
+	b.kickPeak = math.Max(bass, b.kickPeak*math.Exp(-dt*0.3))
+	n := len(b.kickHist)
+	lag := n
+	if dt > kickRise/float64(n) {
+		lag = max(1, min(n, int(kickRise/dt+0.5)))
+	}
+	old := b.kickHist[(b.kickPos-lag+n)%n]
+	b.kickHist[b.kickPos] = bass
+	b.kickPos = (b.kickPos + 1) % n
+	rise := (bass - old) / math.Max(b.kickPeak, 0.05)
+	b.riseTop = math.Max(rise, b.riseTop*math.Exp(-dt*0.5))
+	if b.beatWait <= 0 && rise > math.Max(0.12, 0.35*b.riseTop) {
+		b.beat, b.beatWait = 1, 0.22
 		return true
 	}
 	return false
@@ -157,6 +207,22 @@ func (p *pixState) render(a *App, w, h int, now time.Time) {
 		p.renderNebula(a, dt)
 	case styleSpectrogram:
 		p.renderSpectrogram(a, dt)
+	case styleFire:
+		p.renderFire(a, dt)
+	case styleWarp:
+		p.renderWarp(a, dt)
+	case styleWormhole:
+		p.renderWormhole(a, dt)
+	case styleCopper:
+		p.renderCopper(a, dt)
+	case styleRidgeline:
+		p.renderRidgeline(a, dt)
+	case styleHorizon:
+		p.renderHorizon(a, dt)
+	case styleLava:
+		p.renderLava(a, dt)
+	case styleLED:
+		p.renderLED(a, dt)
 	default:
 		p.renderNeon(a, dt)
 	}
@@ -175,7 +241,7 @@ func (p *pixState) renderNeon(a *App, dt float64) {
 	n := max(8, min(128, w/6))
 	p.smoothLevels(a.spectrumLevels(n), dt)
 	bass := bandMean(a.visualizer.Levels(32), 0, 0.15)
-	hit := p.trackBeat(bass, dt)
+	hit := p.trackBeat(kickLevel(a.visualizer), dt)
 
 	pal := activePalette
 	stops := []rgb{hexRGB(pal.Info), hexRGB(pal.Secondary), hexRGB(pal.Accent)}
@@ -205,17 +271,11 @@ func (p *pixState) renderNeon(a *App, dt float64) {
 	for _, lvl := range p.levels {
 		tallest = math.Max(tallest, lvl)
 	}
+	p.updatePeaks(dt)
 
 	fr.clear()
 	for i, lvl := range p.levels {
 		lvl = clamp01(lvl)
-		// Peaks hold at the top and fall under gravity.
-		if lvl >= p.peaks[i] {
-			p.peaks[i], p.peakVel[i] = lvl, 0
-		} else {
-			p.peakVel[i] += dt * 2.2
-			p.peaks[i] = math.Max(lvl, p.peaks[i]-p.peakVel[i]*dt)
-		}
 		x0 := int(float64(i)*pitch + (pitch-float64(barW))/2)
 		x1 := x0 + barW
 		top := base - int(lvl*maxH)
@@ -280,7 +340,7 @@ func (p *pixState) renderNebula(a *App, dt float64) {
 	p.smoothLevels(raw, dt)
 	bass := bandMean(p.levels, 0, 0.15)
 	mid := bandMean(p.levels, 0.15, 0.5)
-	hit := p.trackBeat(bandMean(raw, 0, 0.15), dt)
+	hit := p.trackBeat(kickLevel(a.visualizer), dt)
 	p.spin += dt * (0.12 + 0.6*mid)
 
 	zoom := float32(1 - dt*(0.35+1.6*bass))

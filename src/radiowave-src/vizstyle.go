@@ -26,75 +26,62 @@ const (
 	styleNeon
 	styleNebula
 	styleSpectrogram
+	styleFire
+	styleWarp
+	styleWormhole
+	styleCopper
+	styleRidgeline
+	styleHorizon
+	styleLava
+	styleLED
 	vizStyleCount // sentinel — keep last
 )
 
 // pixel reports whether the style is drawn as a kitty graphics image rather
-// than character cells. Pixel styles are skipped when graphics are off.
-func (s vizStyle) pixel() bool { return s == styleNeon || s == styleNebula || s == styleSpectrogram }
+// than character cells. Pixel styles are skipped when graphics are off; they
+// are kept together from styleNeon to the end of the list.
+func (s vizStyle) pixel() bool { return s >= styleNeon && s < vizStyleCount }
+
+var vizStyleLabels = [vizStyleCount]string{
+	styleClassic:      "Classic",
+	styleMirrored:     "Mirrored",
+	styleBlocks:       "Blocks",
+	stylePeaks:        "Peaks",
+	styleVU:           "VU",
+	styleOscilloscope: "Oscilloscope",
+	styleWaterfall:    "Waterfall",
+	stylePlasma:       "Plasma",
+	styleTunnel:       "Tunnel",
+	styleRibbons:      "Ribbons",
+	styleNeon:         "Neon",
+	styleNebula:       "Nebula",
+	styleSpectrogram:  "Spectrogram",
+	styleFire:         "Fire",
+	styleWarp:         "Warp",
+	styleWormhole:     "Wormhole",
+	styleCopper:       "Copper",
+	styleRidgeline:    "Ridgeline",
+	styleHorizon:      "Horizon",
+	styleLava:         "Lava",
+	styleLED:          "LED",
+}
 
 func (s vizStyle) Label() string {
-	switch s {
-	case styleNeon:
-		return "Neon"
-	case styleNebula:
-		return "Nebula"
-	case styleSpectrogram:
-		return "Spectrogram"
-	case stylePlasma:
-		return "Plasma"
-	case styleTunnel:
-		return "Tunnel"
-	case styleRibbons:
-		return "Ribbons"
-	case styleMirrored:
-		return "Mirrored"
-	case styleBlocks:
-		return "Blocks"
-	case stylePeaks:
-		return "Peaks"
-	case styleVU:
-		return "VU"
-	case styleOscilloscope:
-		return "Oscilloscope"
-	case styleWaterfall:
-		return "Waterfall"
-	default:
-		return "Classic"
+	if s < 0 || s >= vizStyleCount {
+		s = styleClassic
 	}
+	return vizStyleLabels[s]
 }
 
 func (s vizStyle) String() string { return strings.ToLower(s.Label()) }
 
 func parseVizStyle(s string) vizStyle {
-	switch strings.ToLower(s) {
-	case "neon":
-		return styleNeon
-	case "nebula":
-		return styleNebula
-	case "spectrogram":
-		return styleSpectrogram
-	case "plasma":
-		return stylePlasma
-	case "tunnel":
-		return styleTunnel
-	case "ribbons":
-		return styleRibbons
-	case "mirrored":
-		return styleMirrored
-	case "blocks":
-		return styleBlocks
-	case "peaks":
-		return stylePeaks
-	case "vu":
-		return styleVU
-	case "oscilloscope":
-		return styleOscilloscope
-	case "waterfall":
-		return styleWaterfall
-	default:
-		return styleClassic
+	for i, l := range vizStyleLabels {
+		if strings.EqualFold(l, s) {
+			return vizStyle(i)
+		}
 	}
+	return styleClassic
 }
 
 // renderVisualizer produces `rows` terminal lines of width `cols` for the

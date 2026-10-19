@@ -1,4 +1,4 @@
-# Radiowave v0.7.1
+# Radiowave v0.8.6
 
 A terminal-native internet radio player and discovery tool for Linux.
 
@@ -36,10 +36,13 @@ Plasma, Tunnel, and Ribbons. The three new effects use bass, midrange and
 treble energy to drive motion, shape and detail, with a bounded 160×60
 effect grid at the existing 12.5 redraws per second.
 
-In Kitty (or any terminal with the Kitty graphics protocol), three pixel
+In Kitty (or any terminal with the Kitty graphics protocol), eleven pixel
 styles also join the cycle: **Neon** (bars with beat sparks and a rippling
-reflection), **Nebula** (feedback swirl) and **Spectrogram** (scrolling
-heat map). They draw real RGBA
+reflection), **Nebula** (feedback swirl), **Spectrogram** (scrolling
+heat map), **Fire**, **Warp** (starfield), **Wormhole** (spectrum tunnel),
+**Copper** (Amiga raster bars), **Ridgeline** (Unknown Pleasures),
+**Horizon** (synthwave sunset), **Lava** (metaballs) and **LED**
+(segmented analyser). They draw real RGBA
 graphics at 60 fps with alpha blending over the theme background, on a
 canvas of 2×2-screen-pixel blocks sent through shared memory. Other
 terminals and tmux keep the character styles; `--gfx=auto|shm|direct|off`

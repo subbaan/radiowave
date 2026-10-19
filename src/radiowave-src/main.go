@@ -84,6 +84,8 @@ type App struct {
 	vizOrder      frequencyOrder
 	effectLast    time.Time
 	effectPhase   float64
+	effectPeak    [3]float64 // running peak of each effect band
+	effectBeat    beatDetector
 	vizStyle      vizStyle
 	vizPeaks      []float64
 	vizHistory    [][]float64
@@ -335,7 +337,7 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Run with no arguments to start the TUI. It reconnects to the last")
 	fmt.Println("playing station automatically when playback was active on exit.")
-	fmt.Println("Pixel styles (Neon, Nebula) need the kitty graphics protocol; other")
+	fmt.Println("Pixel styles (Neon, Nebula, Fire, Warp, ...) need the kitty graphics protocol; other")
 	fmt.Println("terminals keep the character-cell styles.")
 }
 

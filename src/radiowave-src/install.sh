@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Radiowave installer v0.7.1
+# Radiowave installer v0.8.6
 set -euo pipefail
 
-VERSION="0.7.1"
+VERSION="0.8.6"
 DEST="${HOME}/.local/bin"
 
 echo "Building Radiowave ${VERSION}..."

@@ -4,6 +4,86 @@ All notable user-visible changes to Radiowave are recorded here, grouped by
 version. This is a hobby project changelog — concise entries, not a diff
 narration.
 
+## v0.8.6
+
+### Changed
+
+- Plasma, Tunnel and Ribbons scale their bands against running peaks, so
+  they react on any station instead of idling. Plasma zooms with the bass
+  and flashes on each kick, and Tunnel sends a shockwave ring out of the
+  centre on each kick. Treble adds detail to both.
+- Copper bars swell and brighten with each hit in their band and thin to
+  a line between hits, instead of sitting near full size on dense music.
+- Ridgeline peaks rise much higher, and Horizon's mountains climb well
+  above the skyline, both rising and falling with each hit.
+
+## v0.8.5
+
+### Changed
+
+- Lava reacts much more strongly. Blobs scale with their normalised band
+  level, so they shrink to small drops when quiet and swell when loud, and
+  they brighten with it. Every kick pumps the whole pack, throws it
+  outwards and speeds it up.
+
+## v0.8.4
+
+### Fixed
+
+- Neon, Nebula, Fire, Ridgeline, Horizon and Lava now use the same
+  kick-attack beat detection as Warp, Wormhole and Copper, so their sparks,
+  flashes and surges land on the kick.
+
+## v0.8.3
+
+### Fixed
+
+- Warp, Wormhole and Copper follow the kick drum properly. Beats are now
+  detected from the bass's sharp attack, its rise over the last few frames
+  against the biggest recent rise. On recorded techno this lands on about
+  nine kicks in ten with almost no doubles (v0.8.2 missed or doubled about
+  half), and speech no longer sets it off.
+
+## v0.8.2
+
+### Fixed
+
+- Warp, Wormhole and Copper now catch the kick drum. Beats are detected as
+  the bass jumping clear of its recent low rather than of its running
+  average, which missed most kicks once the bass was normalised.
+
+## v0.8.1
+
+### Fixed
+
+- Warp, Wormhole and Copper barely reacted to real audio, especially quiet
+  or bass-light material such as speech. They now scale each band against
+  its own recent peak, so any material uses the full range.
+  - Warp lays the spectrum around the view, with bass at the bottom. Each
+    star burns as brightly as the band in its direction.
+  - Wormhole tiles pulse with their band's live level, and each beat flies
+    down the tunnel as one lit ring.
+  - Copper bars thicken and brighten with their bands, and beats fan them
+    apart.
+
+## v0.8.0
+
+### Added
+
+- Eight more pixel styles, drawing on the demoscene and Winamp-era plugins:
+  - Fire: the classic demoscene fire, fed by the spectrum, with embers on
+    beats.
+  - Warp: a starfield whose speed follows the bass. Beats kick it into
+    hyperspace streaks, and each star twinkles with its frequency band.
+  - Wormhole: a texture tunnel whose wall is the music, with the spectrum
+    around it and time along it.
+  - Copper: Amiga copper bars, one per band, bobbing and occluding.
+  - Ridgeline: the Unknown Pleasures plot of receding spectrum ridges.
+  - Horizon: a synthwave sunset with spectrum mountains and a scrolling
+    grid.
+  - Lava: merging metaballs that swell with their bands.
+  - LED: a segmented hardware-style analyser with falling peak segments.
+
 ## v0.7.1
 
 ### Added

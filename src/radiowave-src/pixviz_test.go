@@ -63,7 +63,7 @@ func TestPixelStylesRender(t *testing.T) {
 	a := &App{visualizer: NewDemoVisualizer()}
 	a.gfx = &kittyGfx{tx: gfxSHM}
 	now := time.Now()
-	for _, s := range []vizStyle{styleNeon, styleNebula, styleSpectrogram} {
+	for s := styleNeon; s < vizStyleCount; s++ {
 		a.vizStyle = s
 		for i := 0; i < 10; i++ {
 			now = now.Add(16 * time.Millisecond)
@@ -82,10 +82,34 @@ func TestPixelStylesRender(t *testing.T) {
 	}
 }
 
+// TestPixelStylesSurviveTinyPanelsAndSilence guards the index and divide
+// edge cases: one-pixel canvases and all-zero levels must neither panic nor
+// leave NaNs in the canvas.
+func TestPixelStylesSurviveTinyPanelsAndSilence(t *testing.T) {
+	for _, viz := range []Visualizer{fakeRealVisualizer{}, NewDemoVisualizer()} {
+		for s := styleNeon; s < vizStyleCount; s++ {
+			a := &App{visualizer: viz, vizStyle: s}
+			a.gfx = &kittyGfx{tx: gfxSHM}
+			now := time.Now()
+			for _, sz := range [][2]int{{1, 1}, {2, 3}, {5, 4}, {3, 40}, {120, 50}} {
+				for i := 0; i < 5; i++ {
+					now = now.Add(16 * time.Millisecond)
+					a.pix.render(a, sz[0], sz[1], now)
+				}
+				for _, v := range a.pix.cv.pix {
+					if v != v {
+						t.Fatalf("%v at %v left NaN in the canvas", s, sz)
+					}
+				}
+			}
+		}
+	}
+}
+
 // BenchmarkPixelFrame measures one full frame for a 1800x900 px visualizer
 // at the default 2x scale: render + tone-map + upscale into the output.
 func BenchmarkPixelFrame(b *testing.B) {
-	for _, s := range []vizStyle{styleNeon, styleNebula, styleSpectrogram} {
+	for s := styleNeon; s < vizStyleCount; s++ {
 		b.Run(s.Label(), func(b *testing.B) {
 			a := &App{visualizer: NewDemoVisualizer(), vizStyle: s}
 			a.gfx = &kittyGfx{tx: gfxSHM}

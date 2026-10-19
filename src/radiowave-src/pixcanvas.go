@@ -247,3 +247,62 @@ func encodePixel(rf, gf, bf float32) uint32 {
 	inv := invAlpha[a]
 	return uint32(r)*inv>>16 | (uint32(g)*inv>>16)<<8 | (uint32(b)*inv>>16)<<16 | uint32(a)<<24
 }
+
+// clampf exists because render.go's min and max shadow the builtins with
+// int-only versions.
+func clampf(v, lo, hi float32) float32 {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+// set overwrites one pixel, for styles that occlude rather than add light.
+func (c *pixCanvas) set(x, y int, col rgb) {
+	if x < 0 || y < 0 || x >= c.w || y >= c.h {
+		return
+	}
+	i := (y*c.w + x) * 3
+	c.pix[i], c.pix[i+1], c.pix[i+2] = col.r, col.g, col.b
+}
+
+// rect adds col to pixels [x0,x1) x [y0,y1).
+func (c *pixCanvas) rect(x0, y0, x1, y1 int, col rgb) {
+	for y := max(0, y0); y < min(c.h, y1); y++ {
+		c.hspan(x0, x1, y, col)
+	}
+}
+
+// drawField overwrites the canvas with a scalar field in [0,1] (fw x fh,
+// usually coarser than the canvas), bilinearly stretched to fit and
+// coloured through lut.
+func (c *pixCanvas) drawField(f []float32, fw, fh int, lut *[256]rgb) {
+	if fw < 1 || fh < 1 || len(f) < fw*fh {
+		return
+	}
+	sx, sy := float32(fw)/float32(c.w), float32(fh)/float32(c.h)
+	maxX, maxY := float32(fw-1), float32(fh-1)
+	for y := 0; y < c.h; y++ {
+		fy := clampf((float32(y)+0.5)*sy-0.5, 0, maxY)
+		iy := int(fy)
+		ty := fy - float32(iy)
+		r0, r1 := f[iy*fw:iy*fw+fw], f[min(fh-1, iy+1)*fw:][:fw]
+		out := c.pix[y*c.w*3 : y*c.w*3+c.w*3]
+		for x := 0; x < c.w; x++ {
+			fx := clampf((float32(x)+0.5)*sx-0.5, 0, maxX)
+			ix := int(fx)
+			tx := fx - float32(ix)
+			jx := min(fw-1, ix+1)
+			top := r0[ix] + (r0[jx]-r0[ix])*tx
+			bot := r1[ix] + (r1[jx]-r1[ix])*tx
+			v := top + (bot-top)*ty
+			k := int(v * 255)
+			k = max(0, min(255, k))
+			col := lut[k]
+			out[x*3], out[x*3+1], out[x*3+2] = col.r, col.g, col.b
+		}
+	}
+}

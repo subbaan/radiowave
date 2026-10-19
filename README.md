@@ -42,7 +42,7 @@ waveforms. Ten character-cell visualizer styles are available (`v`/`V` to
 cycle): Classic, Mirrored, Blocks, Peaks, VU, Oscilloscope, Waterfall,
 Plasma, Tunnel, and Ribbons.
 
-In Kitty (or any terminal with the Kitty graphics protocol), three **pixel
+In Kitty (or any terminal with the Kitty graphics protocol), eleven **pixel
 styles** join the cycle and render real RGBA graphics at 60 fps with alpha
 blending:
 
@@ -53,6 +53,20 @@ blending:
   spectrum ring; beat sparks smear into comet streaks.
 - **Spectrogram** — scrolling frequency-over-time heat map in your theme's
   colours, quiet bins left transparent.
+- **Fire** — the classic demoscene fire, fed by the spectrum along the
+  bottom, with embers on every beat.
+- **Warp** — a starfield flight: bass sets the speed, beats kick into
+  hyperspace streaks, and every star twinkles with its frequency band.
+- **Wormhole** — a demoscene texture tunnel whose wall is the music:
+  spectrum around it, time along it.
+- **Copper** — Amiga copper bars, one per band, bobbing and overlapping.
+- **Ridgeline** — the *Unknown Pleasures* plot: spectrum ridges receding up
+  the screen.
+- **Horizon** — a synthwave sunset with spectrum mountains and a scrolling
+  neon grid.
+- **Lava** — a lava lamp of metaballs that swell and merge with the music.
+- **LED** — a segmented hardware analyser in the style of Winamp's classic
+  skin, with falling peak segments.
 
 Other terminals and tmux keep the character styles. `--gfx=auto|shm|direct|off` picks the transport and
 `--pixel-scale=N` the pixel size (default 2×2 screen pixels).
